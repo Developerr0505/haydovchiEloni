@@ -1,0 +1,17 @@
+# Python cache files
+__pycache__/
+*.pyc
+
+# Environment
+.env
+.venv/
+env/
+venv/
+
+# Telethon session
+*.session
+*.session-journal
+
+# OS files
+.DS_Store
+Thumbs.db
