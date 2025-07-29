@@ -71,33 +71,28 @@ async def callbacks(call: types.CallbackQuery):
 
         text = user_data[user_id]["text"]
 
-        for i in range(0, len(GROUP_LINKS), 2):
-            if user_data.get(user_id, {}).get("stop"):
-                await call.message.answer("❌ Yuborish to‘xtatildi.", reply_markup=ReplyKeyboardRemove())
-                return
+        async def continuous_send():
+            while not user_data.get(user_id, {}).get("stop"):
+                for group_link in GROUP_LINKS:
+                    if user_data.get(user_id, {}).get("stop"):
+                        await bot.send_message(user_id, "❌ Yuborish to‘xtatildi.", reply_markup=ReplyKeyboardRemove())
+                        return
+                    try:
+                        await client.send_message(group_link, text)
+                        await bot.send_message(user_id, f"✅ Yuborildi: {group_link}")
+                    except FloodWaitError as e:
+                        await asyncio.sleep(e.seconds)
+                        await bot.send_message(user_id, f"⏱ Kutish: {e.seconds} sekund ({group_link})")
+                    except Exception as e:
+                        await bot.send_message(user_id, f"❌ Xatolik: {group_link}\n{e}")
+                    await asyncio.sleep(0.5)  # <== juda tez yuborish uchun 0.5 soniyaga tushirildi
 
-            group_pair = GROUP_LINKS[i:i+2]
+                await asyncio.sleep(30)  # <== 10 daqiqa emas, endi 30 soniya kutadi
 
-            for group_link in group_pair:
-                if user_data.get(user_id, {}).get("stop"):
-                    await call.message.answer("❌ Yuborish to‘xtatildi.", reply_markup=ReplyKeyboardRemove())
-                    return
-                try:
-                    await client.send_message(group_link, text)
-                    await call.message.answer(f"✅ Yuborildi: {group_link}")
-                except FloodWaitError as e:
-                    await asyncio.sleep(e.seconds)
-                    await call.message.answer(f"⏱ Kutish: {e.seconds} sekund ({group_link})")
-                except Exception as e:
-                    await call.message.answer(f"❌ Xatolik: {group_link}\n{e}")
-                await asyncio.sleep(2)
-
-            # 2 tadan keyin biroz kutish
-            await asyncio.sleep(2)
-
-        if not user_data[user_id]["stop"]:
-            await call.message.answer("📨 Yuborish yakunlandi ✅", reply_markup=ReplyKeyboardRemove())
+            await bot.send_message(user_id, "📨 Yuborish yakunlandi ✅", reply_markup=ReplyKeyboardRemove())
             user_data.pop(user_id, None)
+
+        asyncio.create_task(continuous_send())
 
 @dp.message_handler(lambda msg: msg.text == "⛔ To‘xtatish")
 async def stop_handler(message: types.Message):
