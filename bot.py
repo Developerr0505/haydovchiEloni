@@ -1,7 +1,8 @@
 import asyncio
 import logging
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup, KeyboardButton, ReplyKeyboardRemove
+from aiogram.filters import Command
 from telethon import TelegramClient
 from telethon.errors import FloodWaitError
 
@@ -74,16 +75,20 @@ GROUPS = [
 ]
 
 bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher(bot)
+dp = Dispatcher()
 client = TelegramClient("elon_session", API_ID, API_HASH)
 user_data = {}
 
 # Klaviaturalar
 def start_menu():
-    return InlineKeyboardMarkup().add(InlineKeyboardButton("📤 E'lon berish", callback_data="elon"))
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📤 E'lon berish", callback_data="elon")]
+    ])
 
 def confirm_menu():
-    return InlineKeyboardMarkup().add(InlineKeyboardButton("✅ Tasdiqlash", callback_data="tasdiqla"))
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ Tasdiqlash", callback_data="tasdiqla")]
+    ])
 
 def cancel_reply_button():
     kb = ReplyKeyboardMarkup(resize_keyboard=True)
@@ -91,15 +96,17 @@ def cancel_reply_button():
     return kb
 
 def new_ad_button():
-    return InlineKeyboardMarkup().add(InlineKeyboardButton("📤 Yangi e'lon", callback_data="elon"))
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="📤 Yangi e'lon", callback_data="elon")]
+    ])
 
 # Start
-@dp.message_handler(commands=['start'])
+@dp.message(Command("start"))
 async def start(message: types.Message):
     await message.answer("Assalomu alaykum!\nE'lon yuborish uchun quyidagini tanlang:", reply_markup=start_menu())
 
 # Tugmalar ishlovchi
-@dp.callback_query_handler(lambda call: True)
+@dp.callback_query()
 async def callbacks(call: types.CallbackQuery):
     user_id = call.from_user.id
 
@@ -133,14 +140,14 @@ async def callbacks(call: types.CallbackQuery):
                         await bot.send_message(user_id, f"⏱ Kutish: {e.seconds} sekund ({group})")
                     except Exception as e:
                         await bot.send_message(user_id, f"❌ Xatolik: {group}\n{e}")
-                    await asyncio.sleep(0.5)  # Har bir guruh orasida 0.5 sek
+                    await asyncio.sleep(0.5)
 
-                await asyncio.sleep(60)  # 1 daqiqa kutish (har doira uchun)
+                await asyncio.sleep(60)
 
         asyncio.create_task(continuous_send())
 
 # To‘xtatish tugmasi
-@dp.message_handler(lambda msg: msg.text == "⛔ To‘xtatish")
+@dp.message(F.text == "⛔ To‘xtatish")
 async def stop_handler(message: types.Message):
     user_id = message.from_user.id
     if user_id in user_data:
@@ -149,7 +156,7 @@ async def stop_handler(message: types.Message):
         await message.answer("Yuborishni qaytadan boshlash uchun pastdagi tugmani bosing:", reply_markup=new_ad_button())
 
 # Matn qabul qilish
-@dp.message_handler()
+@dp.message()
 async def text_handler(message: types.Message):
     user_id = message.from_user.id
     if user_id in user_data and user_data[user_id].get("step") == "waiting_for_elon":
@@ -163,7 +170,7 @@ async def text_handler(message: types.Message):
 async def main():
     logging.basicConfig(level=logging.INFO)
     await client.start()
-    await dp.start_polling()
+    await dp.start_polling(bot)
 
 if __name__ == '__main__':
     asyncio.run(main())
